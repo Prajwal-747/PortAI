@@ -18,27 +18,13 @@ from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from openai import OpenAI
 from ping3 import ping
-
-from PyQt6.QtCore import (
-    QEasingCurve,
-    QPropertyAnimation,
-    QRect,
-    Qt,
-    QThread,
-    pyqtSignal,
-)
-from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QImage, QPainter, QPixmap
-from PyQt6.QtWidgets import (
-    QApplication,
-    QGraphicsDropShadowEffect,
-    QHBoxLayout,
-    QLabel,
-    QMenu,
-    QScrollArea,
-    QSystemTrayIcon,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtCore import (QEasingCurve, QPropertyAnimation, QRect, Qt, QThread,
+                          pyqtSignal)
+from PyQt6.QtGui import (QAction, QColor, QFont, QIcon, QImage, QPainter,
+                         QPixmap)
+from PyQt6.QtWidgets import (QApplication, QGraphicsDropShadowEffect,
+                             QHBoxLayout, QLabel, QMenu, QScrollArea,
+                             QSystemTrayIcon, QVBoxLayout, QWidget)
 
 load_dotenv()
 
