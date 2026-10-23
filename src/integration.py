@@ -1,15 +1,14 @@
 import sys
 import os
 
-# Add parent directories to path to allow clean cross-folder imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.abspath(os.path.join(current_dir, "..")))
+os.environ["QT_LOGGING_RULES"] = "qt.qpa.window=false"
 
 import keyboard
-from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, Qt
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, Qt
+from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PyQt6.QtGui import QAction
 
-from backend.ai_core import (
+from backend import (
     load_whisper_model,
     check_internet,
     record_audio_until_released,
@@ -19,11 +18,12 @@ from backend.ai_core import (
     generate_vision_response,
     conversation_history
 )
-from ui.widgets import GlassyPill, GeminiOverlay
+from ui import GlassyPill, GeminiOverlay, SideDrawer, create_tray_icon
+
 
 class AssistantWorker(QThread):
     status_signal = pyqtSignal(str)
-    result_signal = pyqtSignal(str, str) # prompt, answer
+    result_signal = pyqtSignal(str, str, bytes) # prompt, answer, screenshot_bytes
 
     def __init__(self, whisper_model):
         super().__init__()
@@ -35,7 +35,7 @@ class AssistantWorker(QThread):
             return
 
         self.status_signal.emit("Listening...")
-        audio_chunks = record_audio_until_released(keyboard)
+        audio_chunks = record_audio_until_released()
         
         self.status_signal.emit("Transcribing...")
         prompt = transcribe_audio(self.whisper_model, audio_chunks)
@@ -49,15 +49,17 @@ class AssistantWorker(QThread):
         if query_type == "CLEARCONTEXT":
             conversation_history.clear()
             self.status_signal.emit("Context Cleared")
+            self.result_signal.emit(prompt, "Conversation context cleared.", b"")
             return
 
         self.status_signal.emit(f"Thinking ({query_type})...")
         if query_type == "VISION":
-            answer, _ = generate_vision_response(prompt)
+            answer, screenshot_bytes = generate_vision_response(prompt)
+            self.result_signal.emit(prompt, answer, screenshot_bytes)
         else:
             answer = generate_text_response(prompt)
+            self.result_signal.emit(prompt, answer, b"")
 
-        self.result_signal.emit(prompt, answer)
         self.status_signal.emit("Ready")
 
 
@@ -68,16 +70,44 @@ class PortAIController(QObject):
         super().__init__()
 
         self.app = QApplication.instance()
+        self.app.setQuitOnLastWindowClosed(False)
         self.hotkey_signal.connect(self.trigger_assistant)
 
-        # Load UI
+        # Load UI Elements
         self.pill = GlassyPill()
         self.overlay = GeminiOverlay()
-        
+        self.drawer = SideDrawer()
+
         # Position pill centered at the top of the main screen
         screen_geo = self.app.primaryScreen().geometry()
         self.pill.move((screen_geo.width() - self.pill.width()) // 2, 15)
         self.pill.show()
+
+        # System Tray Integration
+        self.tray_icon = QSystemTrayIcon(create_tray_icon(), self.app)
+        tray_menu = QMenu()
+
+        toggle_drawer_action = QAction("Toggle Side Drawer", self.app)
+        toggle_drawer_action.triggered.connect(
+            lambda: self.drawer.slide_out()
+            if self.drawer.x() < screen_geo.width()
+            else self.drawer.slide_in("Manual Toggle", "PortAI is active.")
+        )
+        tray_menu.addAction(toggle_drawer_action)
+
+        clear_context_action = QAction("Clear Context", self.app)
+        clear_context_action.triggered.connect(lambda: conversation_history.clear())
+        tray_menu.addAction(clear_context_action)
+
+        tray_menu.addSeparator()
+
+        exit_action = QAction("Exit PortAI", self.app)
+        exit_action.triggered.connect(self.app.quit)
+        tray_menu.addAction(exit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.setToolTip("PortAI Assistant (Ctrl + Alt)")
+        self.tray_icon.show()
 
         # Load AI backend
         print("Loading Whisper Model...")
@@ -96,7 +126,7 @@ class PortAIController(QObject):
 
     def trigger_assistant(self):
         if self.worker and self.worker.isRunning():
-            return # Don't trigger if it's already busy
+            return # Don't trigger if busy
 
         self.pill.current_state = "RECORDING"
         self.pill.set_status_text("Listening (Ctrl+Alt)...")
@@ -117,26 +147,19 @@ class PortAIController(QObject):
 
     def update_status(self, text):
         print(f"[UI STATUS] {text}")
-
         self.pill.set_status_text(text)
 
         if "Listening" in text:
             self.pill.current_state = "RECORDING"
-
-        elif any(word in text for word in (
-            "Transcribing", "Routing", "Thinking"
-        )):
+        elif any(word in text for word in ("Transcribing", "Routing", "Thinking")):
             self.pill.current_state = "PROCESSING"
-
-        elif any(word in text for word in (
-            "Ready", "Context Cleared", "No internet"
-        )):
+        elif any(word in text for word in ("Ready", "Context Cleared", "No internet")):
             self.pill.current_state = "IDLE"
             self.overlay.stop_glow()
 
         self.pill.update()
 
-    def handle_result(self, prompt, answer):
+    def handle_result(self, prompt, answer, screenshot_bytes):
         print(f"\n[User]: {prompt}\n[AI]: {answer}\n")
 
         self.overlay.stop_glow()
@@ -144,8 +167,12 @@ class PortAIController(QObject):
         self.pill.set_status_text("Ready")
         self.pill.update()
 
+        # Show the side drawer with response & optional screenshot preview
+        self.drawer.slide_in(prompt, answer, screenshot_bytes)
+
     def run(self):
         sys.exit(self.app.exec())
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
