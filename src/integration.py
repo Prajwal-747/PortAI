@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.abspath(os.path.join(current_dir, "..")))
 
 import keyboard
-from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QTimer, Qt
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt6.QtWidgets import QApplication
 
 from backend.ai_core import (
@@ -23,7 +23,7 @@ from ui.widgets import GlassyPill, GeminiOverlay
 
 class AssistantWorker(QThread):
     status_signal = pyqtSignal(str)
-    result_signal = pyqtSignal(str, str) # answer, type
+    result_signal = pyqtSignal(str, str) # prompt, answer
 
     def __init__(self, whisper_model):
         super().__init__()
@@ -62,17 +62,14 @@ class AssistantWorker(QThread):
 
 
 class PortAIController(QObject):
-    hotkey_triggered = pyqtSignal()
+    hotkey_signal = pyqtSignal()
 
     def __init__(self):
         super().__init__()
 
         self.app = QApplication.instance()
+        self.hotkey_signal.connect(self.trigger_assistant)
 
-        self.hotkey_triggered.connect(self.trigger_assistant)
-
-        self.app = QApplication(sys.argv)
-        
         # Load UI
         self.pill = GlassyPill()
         self.overlay = GeminiOverlay()
@@ -91,36 +88,61 @@ class PortAIController(QObject):
         self.setup_hotkeys()
 
     def setup_hotkeys(self):
-        # Bind Ctrl + Alt to trigger voice recording
-        keyboard.hook(self.global_key_event)
-
-    def global_key_event(self, event):
-        if event.event_type == keyboard.KEY_DOWN:
-            if keyboard.is_pressed("ctrl") and keyboard.is_pressed("alt"):
-                if not self.worker or not self.worker.isRunning():
-                    self.hotkey_triggered.emit()
+        keyboard.add_hotkey(
+            "ctrl+alt",
+            lambda: self.hotkey_signal.emit(),
+            trigger_on_release=False,
+        )
 
     def trigger_assistant(self):
+        if self.worker and self.worker.isRunning():
+            return # Don't trigger if it's already busy
+
         self.pill.current_state = "RECORDING"
-        self.pill.update()
         self.pill.set_status_text("Listening (Ctrl+Alt)...")
         self.overlay.start_glow()
 
         self.worker = AssistantWorker(self.whisper_model)
-        self.worker.status_signal.connect(self.update_status)
-        self.worker.result_signal.connect(self.handle_result)
+
+        self.worker.status_signal.connect(
+            self.update_status,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        self.worker.result_signal.connect(
+            self.handle_result,
+            Qt.ConnectionType.QueuedConnection,
+        )
+
         self.worker.start()
 
     def update_status(self, text):
+        print(f"[UI STATUS] {text}")
+
         self.pill.set_status_text(text)
-        if "Thinking" in text:
+
+        if "Listening" in text:
+            self.pill.current_state = "RECORDING"
+
+        elif any(word in text for word in (
+            "Transcribing", "Routing", "Thinking"
+        )):
             self.pill.current_state = "PROCESSING"
+
+        elif any(word in text for word in (
+            "Ready", "Context Cleared", "No internet"
+        )):
+            self.pill.current_state = "IDLE"
+            self.overlay.stop_glow()
+
+        self.pill.update()
 
     def handle_result(self, prompt, answer):
         print(f"\n[User]: {prompt}\n[AI]: {answer}\n")
+
         self.overlay.stop_glow()
         self.pill.current_state = "IDLE"
         self.pill.set_status_text("Ready")
+        self.pill.update()
 
     def run(self):
         sys.exit(self.app.exec())

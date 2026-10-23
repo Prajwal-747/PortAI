@@ -1,12 +1,16 @@
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRect
-from PyQt6.QtGui import QColor, QPainter, QPen, QBrush, QFont
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsDropShadowEffect
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QPainter, QPen, QBrush
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 class GlassyPill(QWidget):
     """Apple AI-style floating translucent pill widget."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.SubWindow)
+        self.setWindowFlags(
+    Qt.WindowType.FramelessWindowHint
+    | Qt.WindowType.WindowStaysOnTopHint
+    | Qt.WindowType.Tool
+)       
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(320, 50)
         
@@ -18,12 +22,12 @@ class GlassyPill(QWidget):
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
         
-        # Drop Shadow for floating depth
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 120))
-        shadow.setOffset(0, 4)
-        self.setGraphicsEffect(shadow)
+        # # Drop Shadow for floating depth
+        # shadow = QGraphicsDropShadowEffect(self)
+        # shadow.setBlurRadius(20)
+        # shadow.setColor(QColor(0, 0, 0, 120))
+        # shadow.setOffset(0, 4)
+        # self.setGraphicsEffect(shadow)
         
         self.current_state = "IDLE" # IDLE, RECORDING, PROCESSING, SPEAKING
 
