@@ -94,6 +94,13 @@ data/
 requirements.txt           Frozen package versions from the project environment
 ```
 
+## Troubleshooting
+- Microphone does not start: Confirm that Windows has granted microphone permission and that a recording device is selected.
+- API request fails: Confirm that NEBIUS_API_KEY is present in .env and that the key is valid.
+- Whisper loads slowly on the first run: Faster Whisper may need to download its model files.
+- CUDA initialization fails: PortAI automatically falls back to the CPU base Whisper model.
+- Application does not launch an app: Confirm that the requested program is installed and available on Windows.
+
 ## Data and Privacy
 
 - Microphone audio is transcribed locally; the resulting request text is sent to Nebius for classification and, when needed, response generation.
