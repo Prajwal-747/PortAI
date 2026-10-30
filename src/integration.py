@@ -13,12 +13,37 @@ from backend import (
     check_internet,
     record_audio_until_released,
     transcribe_audio,
-    classify_query_type,
-    generate_text_response,
-    generate_vision_response,
-    conversation_history
+    conversation_history,
 )
+from backend.task_router import execute_intent
 from ui import GlassyPill, GeminiOverlay, SideDrawer, create_tray_icon
+
+import re
+
+def is_clipboard_summary_command(prompt):
+    """Recognise natural variations of clipboard-related commands."""
+    text = prompt.lower().strip()
+    text = re.sub(r"[^\w\s']", " ", text)
+    text = " ".join(text.split())
+
+    clipboard_terms = (
+        "clipboard",
+        "clipperboard",  # Common speech transcription error
+        "clip board",
+    )
+
+    if not any(term in text for term in clipboard_terms):
+        return False
+
+    action_terms = (
+        "summarise", "summarize", "summary",
+        "what is", "what's", "what was",
+        "what are", "what's there", "what is there",
+        "read", "show", "tell me", "explain",
+        "look at", "check", "analyse", "analyze",
+    )
+
+    return any(term in text for term in action_terms)
 
 
 class AssistantWorker(QThread):
@@ -36,29 +61,40 @@ class AssistantWorker(QThread):
 
         self.status_signal.emit("Listening...")
         audio_chunks = record_audio_until_released()
-        
+
         self.status_signal.emit("Transcribing...")
         prompt = transcribe_audio(self.whisper_model, audio_chunks)
+
         if not prompt:
             self.status_signal.emit("Ready (No speech detected)")
             return
 
-        self.status_signal.emit("Routing query...")
-        query_type = classify_query_type(prompt, conversation_history)
+        self.status_signal.emit("Understanding request...")
 
-        if query_type == "CLEARCONTEXT":
-            conversation_history.clear()
-            self.status_signal.emit("Context Cleared")
-            self.result_signal.emit(prompt, "Conversation context cleared.", b"")
-            return
+        try:
+            # First classify the intent, then execute the selected action.
+            print(f"[WORKER] Processing: {prompt}")
+            answer, screenshot_bytes, action = execute_intent(prompt)
+            print(f"[WORKER] Completed: {action}")
 
-        self.status_signal.emit(f"Thinking ({query_type})...")
-        if query_type == "VISION":
-            answer, screenshot_bytes = generate_vision_response(prompt)
+            status_messages = {
+                "clipboard.summarise": "Summarising clipboard...",
+                "clipboard.describe": "Reading clipboard...",
+                "vision.analyse": "Analysing screen...",
+                "context.clear": "Context cleared",
+                "chat.respond": "Thinking...",
+            }
+
+            self.status_signal.emit(status_messages.get(action, "Working..."))
             self.result_signal.emit(prompt, answer, screenshot_bytes)
-        else:
-            answer = generate_text_response(prompt)
-            self.result_signal.emit(prompt, answer, b"")
+
+        except Exception as exc:
+            print(f"[TASK ERROR] {type(exc).__name__}: {exc}")
+            self.result_signal.emit(
+                prompt,
+                "Sorry, I couldn't complete that task. Please try again.",
+                b"",
+            )
 
         self.status_signal.emit("Ready")
 

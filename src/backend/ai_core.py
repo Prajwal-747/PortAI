@@ -1,6 +1,6 @@
-import os
 import base64
 import io
+import os
 import time
 
 import ctranslate2
@@ -207,7 +207,6 @@ def generate_text_response(prompt):
     answer = response.choices[0].message.content
     conversation_history.append({"role": "assistant", "content": answer})
     return answer
-
 
 def generate_vision_response(prompt):
     global conversation_history
