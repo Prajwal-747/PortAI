@@ -2,7 +2,7 @@
 
 PortAI is a Windows desktop voice assistant that runs from a lightweight system-tray app. Hold `Ctrl+Alt` to record a request, then release the keys to have PortAI transcribe and route it. Responses appear in an animated on-screen drawer.
 
-
+> **Current architecture:** Speech transcription runs locally with Faster-Whisper. Intent classification, chat responses, clipboard analysis, and screenshot analysis use the Nebius API, so an internet connection and a Nebius API key are required. PortAI is not fully offline, and it is not currently packaged as a portable USB application.
 
 ## Features
 
