@@ -17,7 +17,7 @@ PortAI is a Windows desktop voice assistant that runs from a lightweight system-
 
 ## Project Presentation
 
-----------
+[![PortAI Thumbnail](assets/thumbnail.png)](https://youtu.be/rf1LW6abxy0)
 
 ## Requirements
 
