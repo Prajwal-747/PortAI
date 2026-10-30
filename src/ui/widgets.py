@@ -491,3 +491,24 @@ class SideDrawer(QWidget):
             QRect(end_x, y, self.drawer_width, self.drawer_height)
         )
         self.anim.start()
+
+
+# ---------------------------------------------------------
+# System tray icon
+# ---------------------------------------------------------
+
+def create_tray_icon():
+    pixmap = QPixmap(32, 32)
+    pixmap.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(137, 180, 250))
+    painter.drawEllipse(2, 2, 28, 28)
+
+    painter.setBrush(QColor(30, 30, 46))
+    painter.drawEllipse(11, 11, 10, 10)
+    painter.end()
+
+    return QIcon(pixmap)
