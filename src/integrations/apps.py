@@ -1,4 +1,5 @@
 
+
 import os
 import shutil
 import subprocess
@@ -21,8 +22,8 @@ APP_ALIASES = {
     "powershell": "powershell",
     "firefox": "firefox",
     "chrome": "chrome",
-    "google chrome": "chrome",
     "edge": "edge",
+    "google chrome": "chrome",
     "microsoft edge": "edge",
 }
 
@@ -39,7 +40,6 @@ def _find_executable(name: str, candidates: list[str]) -> str | None:
             return str(path)
 
     return None
-
 
 def _resolve_app(app_id: str) -> list[str]:
     """Resolve an allowlisted app ID to an executable and arguments."""
