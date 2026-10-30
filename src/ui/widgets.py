@@ -121,4 +121,79 @@ class GlassyPill(QWidget):
             painter.setPen(QPen(QColor(255, 255, 255, 65), 1))
 
         painter.drawRoundedRect(rect, 27, 27)
+    
 
+
+# ---------------------------------------------------------
+# Screen glow overlay
+# ---------------------------------------------------------
+
+class GeminiOverlay(QWidget):
+    """Animated screen-edge illumination effect."""
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        self.alpha = 20
+        self._glow_direction = 1
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_glow)
+
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            self.setGeometry(screen.geometry())
+
+    def start_glow(self):
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            self.setGeometry(screen.geometry())
+
+        self.alpha = 20
+        self._glow_direction = 1
+        self.show()
+        self.raise_()
+        self.timer.start(30)
+
+    def stop_glow(self):
+        self.timer.stop()
+        self.alpha = 0
+        self.hide()
+
+    def update_glow(self):
+        self.alpha += self._glow_direction * 4
+
+        if self.alpha >= 120:
+            self.alpha = 120
+            self._glow_direction = -1
+        elif self.alpha <= 20:
+            self.alpha = 20
+            self._glow_direction = 1
+
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        border_width = 8
+        rect = self.rect().adjusted(
+            border_width // 2,
+            border_width // 2,
+            -(border_width // 2),
+            -(border_width // 2),
+        )
+
+        pen = QPen(QColor(137, 180, 250, self.alpha))
+        pen.setWidth(border_width)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(rect, 18, 18)
