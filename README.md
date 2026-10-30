@@ -17,12 +17,7 @@ PortAI is a Windows desktop voice assistant that runs from a lightweight system-
 
 ## Project Presentation
 
-YouTube presentation embed will go here once the video is available.
-
-<!-- Replace YOUTUBE_VIDEO_ID and uncomment this clickable thumbnail when ready.
-GitHub README pages do not render YouTube iframe players.
-[![Watch the PortAI presentation](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID)
--->
+----------
 
 ## Requirements
 
